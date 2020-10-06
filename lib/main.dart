@@ -1,157 +1,109 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_simple_login_app/rest_api.dart';
+import 'package:http/http.dart' as http;
 
-void main() => runApp(MyApp());
+Future<Login> createLogin(String email, String password) async {
+  final http.Response response = await http.post(
+    'http://3.130.146.97/webservices/api/login',
+    headers: <String, String>{
+      'Content-Type': 'application/json; charset=UTF-8',
+    },
+    body: jsonEncode(<String, String>{
+      'email': email,
+      'password': password,
+    }),
+  );
 
-class MyApp extends StatelessWidget {
+  if (response.statusCode == 201) {
+    return Login.fromJson(jsonDecode(response.body));
+  } else {
+    throw Exception('Failed to login.');
+  }
+}
+
+class Login {
+  final String email;
+  final String password;
+
+  Login({this.email, this.password});
+
+  factory Login.fromJson(Map<String, dynamic> json) {
+    return Login(
+      email: json['email'],
+      password: json['password'],
+    );
+  }
+}
+
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatefulWidget {
+  MyApp({Key key}) : super(key: key);
+
+  @override
+  _MyAppState createState() {
+    return _MyAppState();
+  }
+}
+
+class _MyAppState extends State<MyApp> {
+  final TextEditingController _controller = TextEditingController();
+  final TextEditingController _controllerOne = TextEditingController();
+  Future<Login> _futureLogin;
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'Create Data Example',
       theme: ThemeData(
-        primarySwatch: Colors.purple,
+        primarySwatch: Colors.blue,
       ),
-      home: EmployeePage(),
-    );
-  }
-}
-
-class EmployeePage extends StatefulWidget {
-  @override
-  _EmployeePageState createState() => _EmployeePageState();
-}
-
-class _EmployeePageState extends State<EmployeePage> {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Flutter REST API'),
-      ),
-      body: FutureBuilder(
-        future: ApiService.getEmployees(),
-        builder: (context, snapshot) {
-          final employees = snapshot.data;
-          if (snapshot.connectionState == ConnectionState.done) {
-            return ListView.separated(
-              separatorBuilder: (context, index) {
-                return Divider(
-                  height: 2,
-                  color: Colors.black,
-                );
-              },
-              itemBuilder: (context, index) {
-                return ListTile(
-                  title: Text(employees[index]['employee_name']),
-                  subtitle: Text('Age: ${employees[index]['employee_age']}'),
-                );
-              },
-              itemCount: employees.length,
-            );
-          }
-          return Center(
-            child: CircularProgressIndicator(),
-          );
-
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => AddNewEmployeePage(),
-            ),
-          );
-        },
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ),
-    );
-  }
-}
-
-class AddNewEmployeePage extends StatefulWidget {
-  AddNewEmployeePage({Key key}) : super(key: key);
-
-  _AddNewEmployeePageState createState() => _AddNewEmployeePageState();
-}
-
-class _AddNewEmployeePageState extends State<AddNewEmployeePage> {
-  final _employeeNameController = TextEditingController();
-  final _employeeAge = TextEditingController();
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('New Employee'),
-      ),
-      body: Center(
-        child: Padding(
-          padding: EdgeInsets.all(10),
-          child: Column(
+      home: Scaffold(
+        appBar: AppBar(
+          title: Text('Create Data Example'),
+        ),
+        body: Container(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.all(8.0),
+          child: (_futureLogin == null)
+              ? Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
               TextField(
-                controller: _employeeNameController,
-                decoration: InputDecoration(hintText: 'Employee Name'),
+                controller: _controller,
+                decoration: InputDecoration(hintText: 'Enter Title'),
               ),
               TextField(
-                controller: _employeeAge,
-                decoration: InputDecoration(hintText: 'Employee Age'),
-                keyboardType: TextInputType.number,
+                controller: _controllerOne,
+                decoration: InputDecoration(hintText: 'Enter Password'),
               ),
               RaisedButton(
-                child: Text(
-                  'SAVE',
-                  style: TextStyle(
-                    color: Colors.white,
-                  ),
-                ),
-                color: Colors.purple,
+                child: Text('Submit'),
                 onPressed: () {
-                  final body = {
-                    "name": _employeeNameController.text,
-                    "age": _employeeAge.text,
-                  };
-                  ApiService.addEmployee(body).then((success) {
-                    if (success) {
-                      showDialog(
-                        builder: (context) => AlertDialog(
-                          title: Text('Employee has been added!!!'),
-                          actions: <Widget>[
-                            FlatButton(
-                              onPressed: () {
-                                Navigator.pop(context);
-                                _employeeNameController.text = '';
-                                _employeeAge.text = '';
-                              },
-                              child: Text('OK'),
-                            )
-                          ],
-                        ),
-                        context: context,
-                      );
-                      return;
-                    }else{
-                      showDialog(
-                        builder: (context) => AlertDialog(
-                          title: Text('Error Adding Employee!!!'),
-                          actions: <Widget>[
-                            FlatButton(
-                              onPressed: () {
-                                Navigator.pop(context);
-                              },
-                              child: Text('OK'),
-                            )
-                          ],
-                        ),
-                        context: context,
-                      );
-                      return;
-                    }
+                  setState(() {
+                    _futureLogin = createLogin(_controller.text,_controllerOne.text);
                   });
                 },
-              )
+              ),
             ],
+          )
+              : FutureBuilder<Login>(
+            future: _futureLogin,
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+              //here we have to return text snapshot but cant figure it how to return email and password both
+                Text(snapshot.data.email);
+                Text(snapshot.data.password);
+              } else if (snapshot.hasError) {
+                return Text("${snapshot.error}");
+              }
+
+              return CircularProgressIndicator();
+            },
           ),
         ),
       ),
